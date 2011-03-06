@@ -1,12 +1,71 @@
 #include<QtOpenGL>
 #include<QtGui>
 
+class planeta
+{
+private:
+    float x,y,radius;
+    int playerID;
+public:
+    planeta(float x=0,float y=0, float radius=0.25,float playerID=0)
+    {
+this->x=x;
+this->y=y;
+this->radius=radius;
+this->playerID=playerID;
+    }
+    void setX(float x) {this->x=x;}
+    void setY(float y) {this->y=y;}
+    void setRadius(float r) {radius=r;}
+    void setPlayerID(int pid) {playerID=pid;}
+    float getX() {return x;}
+    float getY() {return y;}
+    float getRadius() {return radius;}
+    int getPlayerID() {return playerID;}
+};
+
+
 class nava
 {
 private :
 float x,y,angle;
 float xd,yd,angled;
 int playerID;
+planeta lp;//lista cu planete care trebuiesc adaugate
+void avoidPlanet(planeta pl)
+{
+float xnext,ynext,dist,x2,y2;//x2 e inutil, x2 si y2 sunt coordonatele centrului planetei din punctul de vedere al navei
+float i;
+for(i=0;i<2;i+=0.2)
+{
+xnext=x+i*cos(angle*3.14/180);
+ynext=y+i*sin(angle*3.14/180);
+
+glLoadIdentity();
+glTranslatef(0,0,-20);
+glColor3f(1,1,0);
+glBegin(GL_POINTS);
+glVertex2f(xnext,ynext);
+glEnd();
+
+dist=pow(xnext-pl.getX(),2)+pow(ynext-pl.getY(),2);//ERA X-p1,getX() BA BOULE
+dist=sqrt(dist);
+//printf("(%f,%f) (%f,%f) r=%f dist=%f\n",x,y,pl.getX(),pl.getY(),pl.getRadius(),dist);
+if(dist<pl.getRadius()*1.2)//ca sa nu evite planeta la limita
+    {
+    x2=pl.getX();
+    y2=pl.getY();
+    x2=x2-x;
+    y2=y2-y;
+    y2=y2+dist*sin(angle);
+    x2=x2+dist*cos(angle);
+    if(y2<0) angle+=10;//initial era 20
+    if(y2>0) angle-=10;
+    printf("(%f,%f) dist:f,angle:%f\n",x2,y2,angle);
+    }
+}
+}
+
 public:
 nava(float x=0,float y=0,float angle=0,int playerID=0)
 {
@@ -16,20 +75,22 @@ this->angle=angle;
 this->playerID=playerID;
 xd=0;yd=0;angled=0;
 }
+void addPlanet(planeta p) {lp=p;}
 void move(float xdest,float ydest)
 {
 angled=atan((ydest-y)/(xdest-x));
 angled=angled*180/3.14;//din radiani in grade
 if(xdest-x<0) angled+=180;
+avoidPlanet(lp);
 
 while(angled>=360) angled-=360;
 while(angled<0) angled+=360;
 while(angle>=360) angle=angle-360;
 while(angle<0) angle+=360;
-if(angle<angled) if(abs(angle-angled)<180)angle+=2;//poate si astea ar trebui sa depinda de speed
-                else angle-=2;
-if(angle>angled) if(abs(angle-angled)<180) angle-=2;
-                else angle+=2;
+if(angle<angled) {if(abs(angle-angled)<180)angle+=2;//poate si astea ar trebui sa depinda de speed
+    else angle-=2;}
+if(angle>angled) {if(abs(angle-angled)<180) angle-=2;
+    else angle+=2;}
 while(angle>=360) angle=angle-360;
 while(angle<0) angle+=360;
 float speed=0.1;//o sa o masuram cand avem un schelet bun in JocPRC.cpp
@@ -37,7 +98,7 @@ float speed=0.1;//o sa o masuram cand avem un schelet bun in JocPRC.cpp
 x+=speed*cos(angle*3.14/180);
 y+=speed*sin(angle*3.14/180);
 
-printf("[angled:%f]",angled);
+
 
 }
 float getX() {return x;}
@@ -57,10 +118,12 @@ GLfloat rotationX;
 GLfloat rotationY;
 GLfloat rotationZ;
 GLuint texture;
+planeta p;
 nava n;
 
 float wwidth,wheight;
     public:
+planeta getPlaneta() {return p;}
 bool isDone() {if (xx>6) return true; return false;}
 QColor faceColors[4];
 QPoint lastPos;
@@ -76,6 +139,11 @@ faceColors[0] = Qt::red;
 faceColors[1] = Qt::green;
 faceColors[2] = Qt::blue;
 faceColors[3] = Qt::yellow;
+p.setPlayerID(1);
+p.setX(0);
+p.setY(0);
+p.setRadius(0.5);
+
 }
 /*
 void Mesaj(char ce_tre_sa_scriu[],int x,int y)
@@ -111,7 +179,7 @@ GLuint LoadTexture(char *filename)
 void initializeGL()
 {
     xx=-3;
-    playerColors[0][0]=0.15;
+    n.addPlanet(p);    playerColors[0][0]=0.15;
     playerColors[0][1]=0.15;
     playerColors[0][2]=0.15;
 
@@ -240,7 +308,7 @@ glTranslatef(0.0, 0.0, -20.0);
 glRotatef(rotationX, 1.0, 0.0, 0.0);
 glRotatef(rotationY, 0.0, 1.0, 0.0);
 glRotatef(rotationZ, 0.0, 0.0, 1.0);
-
+/*
 drawPlanet(1,2,0.21,0);
 drawPlanet(-1,-2,0.25,1);
 drawPlanet(-1,2,0.21,2);
@@ -252,7 +320,9 @@ drawShip(1,1,45,1);
 drawShip(-1,-1,45,2);
 drawShip(-2,-2,45,3);
 for(float i=0;i<1;i+=0.1)
-drawShip(-3+i,0+i,45,4);
+drawShip(-3+i,0+i,45,4);*/
+
+drawPlanet(p.getX(),p.getY(),p.getRadius(),p.getPlayerID());
 
 glLoadIdentity();
 glTranslatef(cursorx,cursory,-20);
@@ -264,28 +334,7 @@ glVertex2f(0.1,0);
 glEnd();
 
 n.move(cursorx,cursory);
-//n.move(-100,-100);
-printf("(%f::%f) %f\n",n.getX(),n.getY(),n.getAngle());
 drawShip(n.getX(),n.getY(),n.getAngle(),n.getPlayerID());
-//drawShip(n.getX(),n.getY(),n.getAngle(),n.getPlayerID());
-
-/*
-glLoadIdentity();
-glTranslatef(0,0,-10);
-//glEnable(GL_TEXTURE_2D);
-//glBindTexture(GL_TEXTURE_2D,texture);
-glBegin(GL_POLYGON);
-//glTexCoord2f(0,0);
-glVertex2f(-0.2,-0.2);
-//glTexCoord2f(1,0);
-glVertex2f(0.2,-0.2);
-//glTexCoord2f(1,1);
-glVertex2f(0.2,0.2);
-//glTexCoord2f(0,1);
-glVertex2f(-0.2,0.2);
-//glDisable(GL_TEXTURE_2D);
-*/
-
 
 }
 
