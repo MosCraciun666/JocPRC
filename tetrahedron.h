@@ -1,18 +1,67 @@
 #include<QtOpenGL>
 #include<QtGui>
 
+class nava
+{
+private :
+float x,y,angle;
+float xd,yd,angled;
+int playerID;
+public:
+nava(float x=0,float y=0,float angle=0,int playerID=0)
+{
+this->x=x;
+this->y=y;
+this->angle=angle;
+this->playerID=playerID;
+xd=0;yd=0;angled=0;
+}
+void move(float xdest,float ydest)
+{
+angled=atan((ydest-y)/(xdest-x));
+angled=angled*180/3.14;//din radiani in grade
+if(xdest-x<0) angled+=180;
 
+while(angled>=360) angled-=360;
+while(angled<0) angled+=360;
+while(angle>=360) angle=angle-360;
+while(angle<0) angle+=360;
+if(angle<angled) if(abs(angle-angled)<180)angle+=2;//poate si astea ar trebui sa depinda de speed
+                else angle-=2;
+if(angle>angled) if(abs(angle-angled)<180) angle-=2;
+                else angle+=2;
+while(angle>=360) angle=angle-360;
+while(angle<0) angle+=360;
+float speed=0.1;//o sa o masuram cand avem un schelet bun in JocPRC.cpp
+
+x+=speed*cos(angle*3.14/180);
+y+=speed*sin(angle*3.14/180);
+
+printf("[angled:%f]",angled);
+
+}
+float getX() {return x;}
+float getY() {return y;}
+float getAngle() {return angle;}
+void setPlayerID(int ID) {playerID=ID;}
+int getPlayerID() {return playerID;}
+};
 
 class Tetrahedron : public QGLWidget
 {
 Q_OBJECT
-public:
+private:
  GLfloat playerColors[5][3];
- GLfloat xx;
+ GLfloat xx,mousex,mousey,cursorx,cursory;
 GLfloat rotationX;
 GLfloat rotationY;
 GLfloat rotationZ;
 GLuint texture;
+nava n;
+
+float wwidth,wheight;
+    public:
+bool isDone() {if (xx>6) return true; return false;}
 QColor faceColors[4];
 QPoint lastPos;
 
@@ -28,6 +77,20 @@ faceColors[1] = Qt::green;
 faceColors[2] = Qt::blue;
 faceColors[3] = Qt::yellow;
 }
+/*
+void Mesaj(char ce_tre_sa_scriu[],int x,int y)
+{
+
+glLoadIdentity();
+glDisable(GL_TEXTURE_2D);
+glRasterPos3f(x,y,-10);
+
+for(unsigned int i=0;i<strlen(ce_tre_sa_scriu);i++)
+glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24,ce_tre_sa_scriu[i]);
+
+glEnable(GL_TEXTURE_2D);
+}
+*/
 /*
 GLuint LoadTexture(char *filename)
 {
@@ -69,13 +132,13 @@ void initializeGL()
     playerColors[4][2]=0;
 
 qglClearColor(Qt::black);
-glShadeModel(GL_FLAT);
+glShadeModel(GL_SMOOTH);
 glEnable(GL_DEPTH_TEST);
 glDisable(GL_CULL_FACE);
 
 GLfloat mat_specular[] = { 0.25,0.25, 0.25, 1.0 };
-GLfloat mat_shininess[] = { 25.0 };
-GLfloat light_position[] = { 100.0, 100.0, 1.0, 0.0 };
+GLfloat mat_shininess[] = { 2.5 };
+GLfloat light_position[] = { 100.0, 100.0, 50.0, 0.0 };
 glClearColor (0.0, 0.0, 0.0, 0.0);
 glShadeModel (GL_SMOOTH);
 glColorMaterial ( GL_FRONT_AND_BACK, GL_EMISSION ) ;
@@ -88,28 +151,37 @@ glLightfv(GL_LIGHT0, GL_POSITION, light_position);
 glEnable(GL_LIGHTING);
 glEnable(GL_LIGHT0);
 glEnable(GL_DEPTH_TEST);
-
-glDisable(GL_TEXTURE_2D);
+/*
+glEnable(GL_TEXTURE_2D);
+glGenTextures(1, &texture);
+glBindTexture(GL_TEXTURE_2D, texture);
+glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, pixmap_height, pixmap_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, (void*)(&(xim->data[0])));
+*/
 
 //texture=LoadTexture("planet_texture/bmp");
-//int j=0;
-//texture=bindTexture(QPixmap(QString("planet_texture.bmp").arg(j + 1)), GL_TEXTURE_2D);
+/*int j=0;
+texture=bindTexture(QPixmap("side1.png"), GL_TEXTURE_2D);*/
 }
 
 void resizeGL(int width, int height)
 {
+    wwidth=width;
+    wheight=height;
 glViewport(0, 0, width, height);
 glMatrixMode(GL_PROJECTION);
 glLoadIdentity();
 GLfloat x = GLfloat(width) / height;
-glFrustum(-x, x, -1.0, 1.0, 4.0, 15.0);
+glFrustum(-x, x, -1.0, 1.0, 4.0, 25.0);
 glMatrixMode(GL_MODELVIEW);
 }
 
 void drawPlanet(GLfloat x,GLfloat y,float radius,int playerID)
 {
     glLoadIdentity();
-    glTranslatef(x+xx,y,-10);
+    glTranslatef(x,y,-20);
 
     GLint slices, stacks;
     GLUquadricObj *quadObj;
@@ -123,12 +195,48 @@ void drawPlanet(GLfloat x,GLfloat y,float radius,int playerID)
     gluSphere(quadObj, radius, slices, stacks);
 }
 
+void drawShip(GLfloat x,GLfloat y,GLfloat angle,int playerID)
+{
+glLoadIdentity();
+glTranslatef(x,y,-20);
+
+glScalef(0.25,0.25,0.25);
+glDisable(GL_LIGHTING);
+glRotatef(angle-90,0,0,1);
+
+glColor3f(playerColors[playerID][0],playerColors[playerID][1],playerColors[playerID][2]);
+glBegin(GL_LINE_STRIP);
+glVertex2f(-0.25,0);
+glVertex2f(+0,0.1);
+glVertex2f(+0.25,0);
+glColor3f(0.25,0.25,0.25);//0.5 peste tot
+glVertex2f(0,1);
+glColor3f(playerColors[playerID][0],playerColors[playerID][1],playerColors[playerID][2]);
+glVertex2f(-0.25,0);
+glEnd();
+
+glScalef(1.6,1.6,1.6);
+glColor3f(playerColors[playerID][0],playerColors[playerID][1],playerColors[playerID][2]);
+glBegin(GL_LINE_STRIP);
+glVertex2f(-0.25,0);
+glVertex2f(+0,0.1);
+glVertex2f(+0.25,0);
+glColor3f(0.25,0.25,0.25);//0.5 peste tot
+glVertex2f(0,1);
+glColor3f(playerColors[playerID][0],playerColors[playerID][1],playerColors[playerID][2]);
+glVertex2f(-0.25,0);
+glEnd();
+glEnable(GL_LIGHTING);
+}
+
+
 void draw()
 {
     xx+=0.01;
+
 glMatrixMode(GL_MODELVIEW);
 glLoadIdentity();
-glTranslatef(0.0, 0.0, -10.0);
+glTranslatef(0.0, 0.0, -20.0);
 glRotatef(rotationX, 1.0, 0.0, 0.0);
 glRotatef(rotationY, 0.0, 1.0, 0.0);
 glRotatef(rotationZ, 0.0, 0.0, 1.0);
@@ -137,13 +245,54 @@ drawPlanet(1,2,0.21,0);
 drawPlanet(-1,-2,0.25,1);
 drawPlanet(-1,2,0.21,2);
 drawPlanet(1,-2,0.25,3);
-drawPlanet(0,0,0.25,4);
+drawPlanet(-2.5,-2,0.25,4);
+
+drawShip(0,0,45,0);
+drawShip(1,1,45,1);
+drawShip(-1,-1,45,2);
+drawShip(-2,-2,45,3);
+for(float i=0;i<1;i+=0.1)
+drawShip(-3+i,0+i,45,4);
+
+glLoadIdentity();
+glTranslatef(cursorx,cursory,-20);
+glBegin(GL_LINES);
+glVertex2f(0,-0.1);
+glVertex2f(0,0.1);
+glVertex2f(-0.1,0);
+glVertex2f(0.1,0);
+glEnd();
+
+n.move(cursorx,cursory);
+//n.move(-100,-100);
+printf("(%f::%f) %f\n",n.getX(),n.getY(),n.getAngle());
+drawShip(n.getX(),n.getY(),n.getAngle(),n.getPlayerID());
+//drawShip(n.getX(),n.getY(),n.getAngle(),n.getPlayerID());
+
+/*
+glLoadIdentity();
+glTranslatef(0,0,-10);
+//glEnable(GL_TEXTURE_2D);
+//glBindTexture(GL_TEXTURE_2D,texture);
+glBegin(GL_POLYGON);
+//glTexCoord2f(0,0);
+glVertex2f(-0.2,-0.2);
+//glTexCoord2f(1,0);
+glVertex2f(0.2,-0.2);
+//glTexCoord2f(1,1);
+glVertex2f(0.2,0.2);
+//glTexCoord2f(0,1);
+glVertex2f(-0.2,0.2);
+//glDisable(GL_TEXTURE_2D);
+*/
+
 
 }
 
 void paintGL()
 {
 glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+glClearColor(0,0,0,1);
 draw();
 }
 
@@ -155,6 +304,10 @@ void mouseMoveEvent(QMouseEvent *event)
 {
 GLfloat dx = GLfloat(event->x() - lastPos.x()) / width();
 GLfloat dy = GLfloat(event->y() - lastPos.y()) / height();
+mousex=event->x();
+mousey=event->y();
+cursorx=mousex/100-wwidth/200;
+cursory=-mousey/100+wheight/200;
 if (event->buttons() & Qt::LeftButton) {
 rotationX += 180 * dy;
 rotationY += 180 * dx;
@@ -206,3 +359,6 @@ return buffer[3];
 }
 
 };
+
+
+
