@@ -1,6 +1,6 @@
 #include<QtOpenGL>
 #include<QtGui>
-
+//poti renunta la nava.groupID?????????
 class planeta
 {
 private:
@@ -30,8 +30,8 @@ class nava
 private :
 float x,y,angle;
 float xd,yd,angled;
-int playerID;
-planeta lp;//lista cu planete care trebuiesc adaugate
+int playerID,numberOfPlanets,groupID;
+planeta lp[20];//lista cu planete care trebuiesc adaugate
 void avoidPlanet(planeta pl)
 {
 float xnext,ynext,dist,x2,y2;//x2 e inutil, x2 si y2 sunt coordonatele centrului planetei din punctul de vedere al navei
@@ -40,14 +40,14 @@ for(i=0;i<2;i+=0.2)
 {
 xnext=x+i*cos(angle*3.14/180);
 ynext=y+i*sin(angle*3.14/180);
-
+/*
 glLoadIdentity();
 glTranslatef(0,0,-20);
 glColor3f(1,1,0);
 glBegin(GL_POINTS);
 glVertex2f(xnext,ynext);
 glEnd();
-
+*/
 dist=pow(xnext-pl.getX(),2)+pow(ynext-pl.getY(),2);//ERA X-p1,getX() BA BOULE
 dist=sqrt(dist);
 //printf("(%f,%f) (%f,%f) r=%f dist=%f\n",x,y,pl.getX(),pl.getY(),pl.getRadius(),dist);
@@ -61,27 +61,32 @@ if(dist<pl.getRadius()*1.2)//ca sa nu evite planeta la limita
     x2=x2+dist*cos(angle);
     if(y2<0) angle+=10;//initial era 20
     if(y2>0) angle-=10;
-    printf("(%f,%f) dist:f,angle:%f\n",x2,y2,angle);
+ //   printf("(%f,%f) dist:f,angle:%f\n",x2,y2,angle); IMPORTANT!!
     }
 }
 }
 
 public:
-nava(float x=0,float y=0,float angle=0,int playerID=0)
+nava(float x=0,float y=0,float angle=0,int playerID=0,int gid=0)
 {
 this->x=x;
 this->y=y;
 this->angle=angle;
 this->playerID=playerID;
+groupID=gid;
 xd=0;yd=0;angled=0;
+numberOfPlanets=0;
+
 }
-void addPlanet(planeta p) {lp=p;}
+void addPlanet(planeta p) {lp[numberOfPlanets]=p;numberOfPlanets++;}
 void move(float xdest,float ydest)
 {
+    int i;
 angled=atan((ydest-y)/(xdest-x));
 angled=angled*180/3.14;//din radiani in grade
 if(xdest-x<0) angled+=180;
-avoidPlanet(lp);
+for(i=0;i<numberOfPlanets;i++)
+avoidPlanet(lp[i]);
 
 while(angled>=360) angled-=360;
 while(angled<0) angled+=360;
@@ -106,7 +111,60 @@ float getY() {return y;}
 float getAngle() {return angle;}
 void setPlayerID(int ID) {playerID=ID;}
 int getPlayerID() {return playerID;}
+void setGroupID(int gid) {groupID=gid;}
 };
+
+
+
+
+
+
+
+
+class grupDeNave
+{
+private:
+nava n[10];
+int nrNave;
+public:
+grupDeNave() {nrNave=0;}
+void reset() {nrNave=0;}//bullshit doar ca sa rezolv o eroare
+void adaugaNava(nava nav)
+    {
+    if(nrNave<10) {
+        n[nrNave]=nav;
+        n[nrNave].setGroupID(nrNave);
+        nrNave++;
+    }
+    else printf("eroare,prea multe nave in grup\n");
+    }
+void miscaGrup(float x,float y)
+{
+int i;
+printf("misc grupul: Nrnave=%d => ",nrNave);
+for(i=0;i<nrNave;i++)
+    {
+    float x2,y2;//auxiliare pt navele care tre sa fie mai "pe margine"
+    float d=i;//corectie pt  mai tarziu: d=f(i,R)
+    if(i%2==1) d=-d;
+    x2=x+d*sin(n[i].getAngle()*3.14/180);
+    y2=y+d*cos(n[i].getAngle()*3.14/180);
+n[i].move(x2,y2);
+printf("%d:(%f,%f);",i,n[i].getX(),n[i].getY());
+    }
+printf("\n");
+}
+nava getNava(int index) {return n[index];}
+};
+
+
+
+
+
+
+
+
+
 
 class Tetrahedron : public QGLWidget
 {
@@ -118,8 +176,9 @@ GLfloat rotationX;
 GLfloat rotationY;
 GLfloat rotationZ;
 GLuint texture;
-planeta p;
-nava n;
+planeta p,p2;
+nava n,n2,n3;
+grupDeNave g;
 
 float wwidth,wheight;
     public:
@@ -140,46 +199,30 @@ faceColors[1] = Qt::green;
 faceColors[2] = Qt::blue;
 faceColors[3] = Qt::yellow;
 p.setPlayerID(1);
-p.setX(0);
-p.setY(0);
+p.setX(-2);
+p.setY(-3);
 p.setRadius(0.5);
-
+p2.setPlayerID(2);
+p2.setX(2);
+p2.setY(2);
+p2.setRadius(0.75);
 }
-/*
-void Mesaj(char ce_tre_sa_scriu[],int x,int y)
-{
-
-glLoadIdentity();
-glDisable(GL_TEXTURE_2D);
-glRasterPos3f(x,y,-10);
-
-for(unsigned int i=0;i<strlen(ce_tre_sa_scriu);i++)
-glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24,ce_tre_sa_scriu[i]);
-
-glEnable(GL_TEXTURE_2D);
-}
-*/
-/*
-GLuint LoadTexture(char *filename)
-{
-        GLuint texID;
-
-        AUX_RGBImageRec *image = auxDIBImageLoad(filename);
-
-        glGenTextures(1, &texID);
-        glBindTexture(GL_TEXTURE_2D, texID);
-        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
-        gluBuild2DMipmaps(GL_TEXTURE_2D, 3, image->sizeX, image->sizeY, GL_RGB, GL_UNSIGNED_BYTE, image->data);
-
-        return texID;
-}*/
 
 
 void initializeGL()
 {
-    xx=-3;
-    n.addPlanet(p);    playerColors[0][0]=0.15;
+
+    n.addPlanet(p);
+    n.addPlanet(p2);
+    n2.addPlanet(p);
+    n2.addPlanet(p2);
+    n3.addPlanet(p);
+    n3.addPlanet(p2);
+    g.reset();
+    g.adaugaNava(n);
+    g.adaugaNava(n2);
+    g.adaugaNava(n3);
+    playerColors[0][0]=0.15;
     playerColors[0][1]=0.15;
     playerColors[0][2]=0.15;
 
@@ -300,7 +343,6 @@ glEnable(GL_LIGHTING);
 
 void draw()
 {
-    xx+=0.01;
 
 glMatrixMode(GL_MODELVIEW);
 glLoadIdentity();
@@ -308,21 +350,10 @@ glTranslatef(0.0, 0.0, -20.0);
 glRotatef(rotationX, 1.0, 0.0, 0.0);
 glRotatef(rotationY, 0.0, 1.0, 0.0);
 glRotatef(rotationZ, 0.0, 0.0, 1.0);
-/*
-drawPlanet(1,2,0.21,0);
-drawPlanet(-1,-2,0.25,1);
-drawPlanet(-1,2,0.21,2);
-drawPlanet(1,-2,0.25,3);
-drawPlanet(-2.5,-2,0.25,4);
 
-drawShip(0,0,45,0);
-drawShip(1,1,45,1);
-drawShip(-1,-1,45,2);
-drawShip(-2,-2,45,3);
-for(float i=0;i<1;i+=0.1)
-drawShip(-3+i,0+i,45,4);*/
 
 drawPlanet(p.getX(),p.getY(),p.getRadius(),p.getPlayerID());
+drawPlanet(p2.getX(),p2.getY(),p2.getRadius(),p2.getPlayerID());
 
 glLoadIdentity();
 glTranslatef(cursorx,cursory,-20);
@@ -332,9 +363,15 @@ glVertex2f(0,0.1);
 glVertex2f(-0.1,0);
 glVertex2f(0.1,0);
 glEnd();
-
+/*
 n.move(cursorx,cursory);
-drawShip(n.getX(),n.getY(),n.getAngle(),n.getPlayerID());
+n2.move(cursorx+1,cursory+1);*/
+g.miscaGrup(cursorx,cursory);
+n2.setPlayerID(1);
+n3.setPlayerID(2);
+int i;
+for(i=0;i<3;i++)
+drawShip(g.getNava(i).getX(),g.getNava(i).getY(),g.getNava(i).getAngle(),g.getNava(i).getPlayerID());
 
 }
 
@@ -355,8 +392,8 @@ GLfloat dx = GLfloat(event->x() - lastPos.x()) / width();
 GLfloat dy = GLfloat(event->y() - lastPos.y()) / height();
 mousex=event->x();
 mousey=event->y();
-cursorx=mousex/100-wwidth/200;
-cursory=-mousey/100+wheight/200;
+cursorx=mousex/100-wwidth/150;
+cursory=-mousey/100+wheight/150;
 if (event->buttons() & Qt::LeftButton) {
 rotationX += 180 * dy;
 rotationY += 180 * dx;
