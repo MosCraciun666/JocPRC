@@ -92,10 +92,10 @@ while(angled>=360) angled-=360;
 while(angled<0) angled+=360;
 while(angle>=360) angle=angle-360;
 while(angle<0) angle+=360;
-if(angle<angled) {if(abs(angle-angled)<180)angle+=2;//poate si astea ar trebui sa depinda de speed
-    else angle-=2;}
-if(angle>angled) {if(abs(angle-angled)<180) angle-=2;
-    else angle+=2;}
+if(angle<angled) {if(abs(angle-angled)<180)angle+=4;//poate si astea ar trebui sa depinda de speed
+    else angle-=4;}
+if(angle>angled) {if(abs(angle-angled)<180) angle-=4;
+    else angle+=4;}
 while(angle>=360) angle=angle-360;
 while(angle<0) angle+=360;
 float speed=0.1;//o sa o masuram cand avem un schelet bun in JocPRC.cpp
@@ -145,10 +145,22 @@ printf("misc grupul: Nrnave=%d => ",nrNave);
 for(i=0;i<nrNave;i++)
     {
     float x2,y2;//auxiliare pt navele care tre sa fie mai "pe margine"
-    float d=i;//corectie pt  mai tarziu: d=f(i,R)
+                //d reprezinta distanta care ar trebui sa o aiba navele intre ele
+    float d=i*0.375;//corectie pt  mai tarziu: d=f(i,R)
     if(i%2==1) d=-d;
-    x2=x+d*sin(n[i].getAngle()*3.14/180);
-    y2=y+d*cos(n[i].getAngle()*3.14/180);
+    x2=x+d*cos(3.14/2+n[i].getAngle()*3.14/180);
+    y2=y+d*sin(3.14/2+n[i].getAngle()*3.14/180);
+
+    glLoadIdentity();
+    glTranslatef(0,0,-20);
+    glColor3f(1,(float)i/3,0);
+    glBegin(GL_LINES);
+    glVertex2f(x2-0.25,y2);
+    glVertex2f(x2+0.25,y2);
+    glVertex2f(x2,y2-0.25);
+    glVertex2f(x2,y2+0.25);
+    glEnd();
+
 n[i].move(x2,y2);
 printf("%d:(%f,%f);",i,n[i].getX(),n[i].getY());
     }
@@ -176,8 +188,8 @@ GLfloat rotationX;
 GLfloat rotationY;
 GLfloat rotationZ;
 GLuint texture;
-planeta p,p2;
-nava n,n2,n3;
+planeta p,p2,p3;
+nava n,n2,n3,n4;
 grupDeNave g;
 
 float wwidth,wheight;
@@ -206,6 +218,10 @@ p2.setPlayerID(2);
 p2.setX(2);
 p2.setY(2);
 p2.setRadius(0.75);
+p3.setPlayerID(3);
+p3.setX(-3);
+p3.setY(2);
+p3.setRadius(0.6);
 }
 
 
@@ -214,14 +230,21 @@ void initializeGL()
 
     n.addPlanet(p);
     n.addPlanet(p2);
+    n.addPlanet(p3);
     n2.addPlanet(p);
     n2.addPlanet(p2);
+    n2.addPlanet(p3);
     n3.addPlanet(p);
     n3.addPlanet(p2);
+    n3.addPlanet(p3);
+    n4.addPlanet(p);
+    n4.addPlanet(p2);
+    n4.addPlanet(p3);
     g.reset();
     g.adaugaNava(n);
     g.adaugaNava(n2);
     g.adaugaNava(n3);
+    g.adaugaNava(n4);
     playerColors[0][0]=0.15;
     playerColors[0][1]=0.15;
     playerColors[0][2]=0.15;
@@ -354,6 +377,7 @@ glRotatef(rotationZ, 0.0, 0.0, 1.0);
 
 drawPlanet(p.getX(),p.getY(),p.getRadius(),p.getPlayerID());
 drawPlanet(p2.getX(),p2.getY(),p2.getRadius(),p2.getPlayerID());
+drawPlanet(p3.getX(),p3.getY(),p3.getRadius(),p3.getPlayerID());
 
 glLoadIdentity();
 glTranslatef(cursorx,cursory,-20);
@@ -370,7 +394,7 @@ g.miscaGrup(cursorx,cursory);
 n2.setPlayerID(1);
 n3.setPlayerID(2);
 int i;
-for(i=0;i<3;i++)
+for(i=0;i<4;i++)
 drawShip(g.getNava(i).getX(),g.getNava(i).getY(),g.getNava(i).getAngle(),g.getNava(i).getPlayerID());
 
 }
