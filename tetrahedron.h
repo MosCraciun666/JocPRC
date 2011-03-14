@@ -402,7 +402,7 @@ void initializeGL()
     int i,j;
     t1=clock();
     t_crestere1=clock();
-    setHostPlayerID(2);
+    //setHostPlayerID(4);
     numberOfPlanets=10;//max. 17 planete; de ce?
     numberOfShips=6;
     numberOfGroups=200;
@@ -438,7 +438,7 @@ void initializeGL()
     for(j=0;j<numberOfGroups;j++)
     for(i=0;i<numberOfShips;i++)
     g[j].adaugaNava(n[i+j*numberOfShips]);
-numberOfGroups=1;
+numberOfGroups=0;//1
 
     for(i=0;i<numberOfPlanets;i++)
     {
@@ -470,8 +470,6 @@ break;
     playerColors[4][1]=0.21;
     playerColors[4][2]=0;
 
-
-qglClearColor(Qt::black);
 glShadeModel(GL_SMOOTH);
 glEnable(GL_DEPTH_TEST);
 glDisable(GL_CULL_FACE);
@@ -479,7 +477,7 @@ glDisable(GL_CULL_FACE);
 GLfloat mat_specular[] = { 0.25,0.25,0.25, 1.0 };//0.25 peste tot,ultima 1
 GLfloat mat_shininess[] = { 2.5 };
 GLfloat light_position[] = { 100.0, 100.0, 50.0, 0.0 };
-glClearColor (0.0, 0.0, 0.0, 0.0);
+
 glShadeModel (GL_SMOOTH);
 glColorMaterial ( GL_FRONT_AND_BACK, GL_EMISSION ) ;
 glEnable ( GL_COLOR_MATERIAL ) ;
@@ -563,7 +561,7 @@ glDisable(GL_LIGHTING);
 glRotatef(angle-90,0,0,1);
 
 glColor3f(playerColors[playerID][0],playerColors[playerID][1],playerColors[playerID][2]);
-glBegin(GL_LINE_STRIP);
+glBegin(GL_POLYGON);
 glVertex2f(-0.25,0);
 glVertex2f(+0,0.1);
 glVertex2f(+0.25,0);
@@ -671,11 +669,12 @@ int newGroup=numberOfGroups;//asta este indexul grupului liber
 bool creezGrupNou=true;
 int originIndex=0,numberOfSentShips=6;//numarul de nave care va fi trimis
 
+if(!numberOfGroups) auxNumberOfGroups=1;
 for(k=0;k<auxNumberOfGroups;k++)
 for(i=0;i<numberOfPlanets;i++)
 if(p[i].mouseOver(cursorx,cursory)) {
     t2=clock();
-    if(t2-t1>175000)
+    if(t2-t1>175000)//era 175000
     {
         int jj;
         t1=t2;
@@ -772,15 +771,10 @@ if(p[i].getX()!=nextOriginX && p[i].getY()!=nextOriginY)
 for(i=0;i<numberOfGroups;i++)
 g[i].miscaGrup();
 
-glLoadIdentity();
-glTranslatef(0,0,-20);
+
 glColor3f(playerColors[hostPlayerID][0],playerColors[hostPlayerID][1],playerColors[hostPlayerID][2]);
-glBegin(GL_POLYGON);
-glVertex2f(4,-4);
-glVertex2f(5,-4);
-glVertex2f(5,-3);
-glVertex2f(4,-3);
-glEnd();
+renderText(10,50,QString("Aceasta este culoarea ta"));
+
 
 for(j=0;j<numberOfGroups;j++)
 for(i=0;i<numberOfShips;i++)
@@ -791,7 +785,7 @@ drawShip(g[j].getNava(i).getX(),g[j].getNava(i).getY(),g[j].getNava(i).getAngle(
 void paintGL()
 {
 glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-glClearColor(0,0,0,1);
+glClearColor(0,0,0.0,1);
 draw();
 update();
 }
