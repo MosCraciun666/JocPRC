@@ -14,6 +14,8 @@
 #include<pthread.h>
 #include "netio.c"
 
+#include<pthread.h>
+
 #define PORT_SERVER 7777
 #define PORTSC 8888
 #define ADRESA_SERVER "127.0.0.1"
@@ -25,9 +27,25 @@ int START_VALID;
 bool done=false;
 //done = inutil deocamdata
 
+
 void trateaza_alarma(int sig){
   START_VALID = 1;
   cout<<"A trecut timpul acordat!";
+}
+
+void *rutinaReceptie(void *arg)
+{
+cout<<"Cica se primesc mesaje\n";
+return NULL;
+}
+
+void *rutinaEmisie(void *arg)//nu imi trebuie!!!! fac trimiterea in draw()s
+{
+   /* Tetrahedron *th;
+    th=(Tetrahedron *)arg;
+    th->sendMessage("Mesaj");*/
+    cout<<"Cica se trimit mesaje\n";
+    return NULL;
 }
 
 int main(int argc, char *argv[])
@@ -40,16 +58,17 @@ if (!QGLFormat::hasOpenGL())
 	}
 
 Tetrahedron tetrahedron;
+
 /*QMessageBox msgBox;
 msgBox.setText("Incepe jocul");
 msgBox.exec();*/
 
-
+tetrahedron.setHostPlayerID(1);
 QMessageBox tmpBox;
 tmpBox.setText("MessageBox temporar pentru teste");
 tmpBox.exec();
 /**************************CONECTAREA LA SERVER*******************************************/
-
+/*
 int buf;
 struct sockaddr_in local, rmt;
 int sockfd;
@@ -114,7 +133,16 @@ read(sockfd,&ma_pot_conecta,sizeof(int));
   cout<<"Valoare: "<<k;
 cout<<"Am intrat in joc !";
 close(sockfd);
+
+printf("Sockfd=%d\n",sockfd);
+tetrahedron.setSocket(sockfd);
 /**************************REDAREA SCENEI GL*******************************************/
+tetrahedron.setSocket(666);
+pthread_t threadReceptie,threadEmisie;
+int thRec,thEm;
+thRec=pthread_create(&threadReceptie,NULL,rutinaReceptie,NULL);
+thEm=pthread_create(&threadEmisie,NULL,rutinaEmisie,(void*)&tetrahedron);//inutil
+
 QMessageBox msgBox;
 msgBox.setText("Incepe jocul");
 msgBox.exec();
@@ -125,6 +153,7 @@ tetrahedron.resize(1000, 500);
 tetrahedron.paintGL();
 tetrahedron.show();
 tetrahedron.draw();
+
 /*while(!tetrahedron.isDone())
 {tetrahedron.updateGL();tetrahedron.draw();}
 exit(0);*/
