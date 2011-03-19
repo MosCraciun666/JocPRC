@@ -2,6 +2,7 @@
 #include<QtGui>
 #include<QMessageBox>
 #include<time.h>
+#include<errno.h>
 
 #define MAXGROUPS 200
 //aAjuns(), metoda al clasei nava este acum inutila
@@ -78,14 +79,7 @@ for(i=0;i<1;i+=0.2)
 {
 xnext=x+i*cos(angle*3.14/180);
 ynext=y+i*sin(angle*3.14/180);
-/*
-glLoadIdentity();
-glTranslatef(0,0,-20);
-glColor3f(1,1,0);
-glBegin(GL_POINTS);
-glVertex2f(xnext,ynext);
-glEnd();
-*/
+
 dist=pow(xnext-pl.getX(),2)+pow(ynext-pl.getY(),2);//ERA X-p1,getX() BA BOULE
 dist=sqrt(dist)*1.2;
 
@@ -99,7 +93,6 @@ if(dist<pl.getRadius()*1.2)//ca sa nu evite planeta la limita
     x2=x2+dist*cos(angle);
     if(y2<0) angle+=10;//initial era 20
     if(y2>0) angle-=10;
- //   printf("(%f,%f) dist:f,angle:%f\n",x2,y2,angle); IMPORTANT!!
     }
 }
 }
@@ -124,8 +117,8 @@ yp=(*p).getY();
 radius=(*p).getRadius();
 dist=pow(xp-x,2)+pow(yp-y,2);
 dist=sqrt(dist);
-//printf("P(%f,%f) D=%f,R=%f\n",xp,yp,dist,(*p).getRadius());
-if(dist<=radius*0.8 && xp!=xorigine && yp!=yorigine)
+
+if(dist<=radius && xp!=xorigine && yp!=yorigine)//radius*0.8
     {
     if((*p).getPopulation()==0)
     {
@@ -271,13 +264,13 @@ void setDest(float x,float y,float r) {xdest=x;ydest=y;rdest=r;
 void miscaGrup()
 {
 int i;
-float div[6]={1,2,2,3,3,4};
+float div[6]={1,2,2,3,3,4},temp;
+
 if(xignore!=-10000&&yignore!=-10000)
 for(i=0;i<nrNave;i++)
     {
     float x2,y2;//auxiliare pt navele care tre sa fie mai "pe margine"
                 //d reprezinta distanta care ar trebui sa o aiba navele intre ele
-    //float d=i*0.2375;//corectie pt  mai tarziu: d=f(i,R,nrNave)
     float d=(float)i/div[i];
     d=d*rdest*0.5;
     if(i%2==1) d=-d;
@@ -327,6 +320,7 @@ void ignorePlanet(float xign,float yign,float rign){xignore=xign;yignore=yign;ri
 nava getNava(int index) {return n[index];}
 float getXDest() {return xdest;}
 float getYDest() {return ydest;}
+float getRDest() {return rdest;}
 
 };
 
@@ -353,6 +347,7 @@ time_t t_crestere1,t_crestere2;
 int hostPlayerID;
 int numberOfPlanets,numberOfShips,numberOfClicks,numberOfGroups;
 int socket;
+bool joaca[4];//cine joaca; joaca[0]=false=>1 nu joaca;joaca[1]=true=>2joaca
 
 planeta p[20];
 nava n[200];//poate 1200!!!
@@ -362,8 +357,75 @@ float wwidth,wheight;
     public:
 void sendMessage(int sockfd,char *msg,int size)
 {
-    printf("Scena trimite mesajul \":%s\" pe socket %d, marime: %d\n",msg,sockfd,size);
+
+    char tmp[512];
+    int trimis;
+
+    sprintf(tmp,"%d %s",hostPlayerID,msg);//atasam id-ul in fata mesajului,ca sa stim de la cine vine
+    trimis=write(sockfd,tmp,512);
+    usleep(25);//pentru ca se pot trimite mesaje mai repede decat se pot procesa
+                //iar 25 us sunt nesemnificative
+
+    printf("Scena trimite mesajul \":%s\" pe socket %d, marime: %d\n",tmp,sockfd,trimis);
+   if(trimis==-1 && errno==EBADF) printf("Socketul e inchis!:%d\n",errno);
 }
+
+void processMessage(char *message)
+{
+
+char type[50],aux[50];
+int iarg[5];
+float farg[5];
+int ID;
+sscanf(message,"%d%s",&ID,type);
+if(ID!=hostPlayerID)//daca eu l-am trimis nu vreau sa execut aceeasi instructiune de 2x
+{
+if(strcmp(type,"MOD_POP")==0)
+    {
+    sscanf(message,"%d%s%d%d",&ID,aux,&iarg[0],&iarg[1]);//nu stiu dinainte daca sunt float sau int si nu stiu nici cate sunt
+    p[iarg[0]].modifyPopulation(iarg[1]);
+    }
+if(strcmp(type,"SET_DEST")==0)
+    {
+    sscanf(message,"%d%s%d%f%f%f",&ID,aux,&iarg[0],&farg[0],&farg[1],&farg[2]);
+    printf("Am luat: %d %s %d %f %f %f",ID,aux,iarg[0],farg[0],farg[1],farg[2]);
+    g[iarg[0]].setDest(farg[0],farg[1],farg[2]);
+    }
+if(strcmp(type,"RESET_SHIP")==0)
+    {
+    sscanf(message,"%d%s%d%d%f%f",&ID,aux,&iarg[0],&iarg[1],&farg[0],&farg[1]);
+    g[iarg[0]].resetShip(iarg[1],farg[0],farg[1]);
+    }
+if(strcmp(type,"SET_FLAG_FALSE")==0)//NETESTAT
+    {
+    sscanf(message,"%d%s%d%d",&ID,aux,&iarg[0],&iarg[1]);
+    g[iarg[0]].setFlag(iarg[1],false);
+    }
+if(strcmp(type,"SET_NUMBER_OF_SHIPS")==0)//NETESTAT
+    {
+    sscanf(message,"%d%s%d%d",&ID,aux,&iarg[0],&iarg[1]);
+    g[iarg[0]].setNumberOfShips(iarg[1]);
+    }
+if(strcmp(type,"SET_GROUP_PLAYERID")==0)//ok
+    {
+    sscanf(message,"%d%s%d%d",&ID,aux,&iarg[0],&iarg[1]);
+    g[iarg[0]].setPlayerID(iarg[1]);
+    }
+if(strcmp(type,"SET_ORIGIN")==0)//NETESTAT
+    {
+    sscanf(message,"%d%s%d%f%f",&ID,aux,&iarg[0],&farg[0],&farg[1]);
+    g[iarg[0]].setOrigin(farg[0],farg[1]);
+    }
+if(strcmp(type,"SET_ANGLE")==0)//FARA EFECT!
+    {
+    sscanf(message,"%d%s%d%d%f",&ID,aux,&iarg[0],&iarg[1],&farg[0]);
+    g[iarg[0]].getNava(iarg[1]).setAngle(farg[0]);
+    }
+if(strcmp(type,"NEW_GROUP")==0) numberOfGroups++;
+}
+else printf("E mesajul meu\n");
+}
+void addPlayer(int i) {joaca[i-1]=true;}
 void setSocket(int sockfd) {socket=sockfd;}
 void setHostPlayerID(int ID) {if(ID>0&&ID<5) hostPlayerID=ID; else printf("Valoare invalida pentru hostPlayerID\n");}
 int getHostPlayerID() {return hostPlayerID;}
@@ -384,32 +446,35 @@ faceColors[1] = Qt::green;
 faceColors[2] = Qt::blue;
 faceColors[3] = Qt::yellow;
 numberOfClicks=0;
-p[0].setPlayerID(1);
-p[0].setX(-2);
-p[0].setY(-3);
-p[0].setRadius(0.25);
-p[1].setPlayerID(2);
-p[1].setX(-3);
-p[1].setY(2);
-p[1].setRadius(1.75);
-p[2].setPlayerID(3);
-p[2].setX(2);
-p[2].setY(2);
-p[2].setRadius(0.6);
-p[3].setPlayerID(4);
-p[3].setX(2);
-p[3].setY(-4);
-p[3].setRadius(0.7);
+
+int i;
+for(i=0;i<4;i++)
+    joaca[i]=false;
 }
 void initializeGL()
 {
     int i,j;
     t1=clock();
     t_crestere1=clock();
-    //setHostPlayerID(4);
     numberOfPlanets=10;//max. 17 planete; de ce?
     numberOfShips=6;
     numberOfGroups=200;
+if(joaca[0])   p[0].setPlayerID(1);//altfel ramane implicit 0 (daca nu joaca rosu, planeta ramane neutra)
+    p[0].setX(-2);
+    p[0].setY(-3);
+    p[0].setRadius(0.25);
+ if(joaca[1])   p[1].setPlayerID(2);
+    p[1].setX(-3);
+    p[1].setY(2);
+    p[1].setRadius(1.75);
+  if(joaca[2])  p[2].setPlayerID(3);
+    p[2].setX(2);
+    p[2].setY(2);
+    p[2].setRadius(0.6);
+  if(joaca[3])  p[3].setPlayerID(4);
+    p[3].setX(2);
+    p[3].setY(-4);
+    p[3].setRadius(0.7);
 
     for(i=4;i<numberOfPlanets;i++)
     {
@@ -417,8 +482,7 @@ void initializeGL()
         p[i].setRadius(i*0.05);
         p[i].setX(i-11);
         p[i].setY(0);*///max 17 planete asa
-        printf("x");
-        p[i].setPlayerID(i%5);
+
         printf("y");
         p[i].setRadius((float)i*0.075);
         printf("z");
@@ -442,7 +506,7 @@ void initializeGL()
     for(j=0;j<numberOfGroups;j++)
     for(i=0;i<numberOfShips;i++)
     g[j].adaugaNava(n[i+j*numberOfShips]);
-numberOfGroups=1;//1
+numberOfGroups=0;//1
 
     for(i=0;i<numberOfPlanets;i++)
     {
@@ -494,19 +558,6 @@ glEnable(GL_LIGHTING);
 glEnable(GL_LIGHT0);
 glEnable(GL_DEPTH_TEST);
 
-/*
-glEnable(GL_TEXTURE_2D);
-glGenTextures(1, &texture);
-glBindTexture(GL_TEXTURE_2D, texture);
-glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, pixmap_height, pixmap_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, (void*)(&(xim->data[0])));
-*/
-
-//texture=LoadTexture("planet_texture/bmp");
-/*int j=0;
-texture=bindTexture(QPixmap("side1.png"), GL_TEXTURE_2D);*/
 }
 
 
@@ -525,6 +576,7 @@ glMatrixMode(GL_MODELVIEW);
 
 void drawPlanet(GLfloat x,GLfloat y,float radius,int playerID,int population)
 {
+
     glLoadIdentity();
     GLdouble modelMatrix[16];
     glGetDoublev(GL_MODELVIEW_MATRIX,modelMatrix);
@@ -541,6 +593,7 @@ void drawPlanet(GLfloat x,GLfloat y,float radius,int playerID,int population)
 
     glLoadIdentity();
     glTranslatef(x,y,-20);
+
 
     GLint slices, stacks;
     GLUquadricObj *quadObj;
@@ -593,11 +646,11 @@ glEnable(GL_LIGHTING);
 
 void draw()
 {
+
 int i,j,k;
-char msg[100];//nu pot *msg,ca crashuie la sprintf
+char msg[512];//nu pot *msg,ca crashuie la sprintf
 
 glMatrixMode(GL_MODELVIEW);
-
 
 t_crestere2=clock();
 if(t_crestere2-t_crestere1>800000)//NU
@@ -610,15 +663,14 @@ if(t_crestere2-t_crestere1>800000)//NU
 for(i=0;i<numberOfPlanets;i++)//NU
 drawPlanet(p[i].getX(),p[i].getY(),p[i].getRadius(),p[i].getPlayerID(),p[i].getPopulation());
 
+
 for(k=0;k<numberOfGroups;k++)//NU CRED (SPECULEAZA!)
 for(i=0;i<numberOfPlanets;i++)
 {
     for(j=0;j<numberOfShips;j++)//daca s-a busit de o planeta, diferita de cea din care pornesti, resetam pozitia si actualizam populatia
         if(g[k].getNava(j).impact(&p[i],g[k].getXOrigine(),g[k].getYOrigine()))// && p[i].getX()!=g[k].getXOrigine() && p[i].getY()!=g[k].getYOrigine())
         {
-        /*QMessageBox msgBox;
-        msgBox.setText("Boom!");
-        msgBox.exec();*/
+
         g[k].setFlag(j,true);//SPECULEAZA!!!
         g[k].resetShip(j,-10000,-10000);//SPECULEAZA!!!
         bool rez=true;
@@ -626,14 +678,14 @@ for(i=0;i<numberOfPlanets;i++)
         for(jj=0;jj<numberOfShips;jj++)
             if(g[k].getFlag(jj)==false) rez=false;
         if(rez) g[k].setDest(-1000,-1000,1);
-        //g[k].resetShip(j,g[k].getXOrigine(),g[k].getYOrigine());
+
         }
 
-           //if(...) g[k].resetShip(j,-10,-10);
+
 }
 int firstPlayerID=p[0].getPlayerID(),castigator=p[0].getPlayerID();//NU
 for(i=1;i<numberOfPlanets;i++)
-    if(p[i].getPlayerID()!=firstPlayerID) castigator=0;
+    if(p[i].getPlayerID()!=firstPlayerID && p[i].getPlayerID()!=0) castigator=0;
 if(castigator!=0)
 {
     char mesaj[50]="";
@@ -646,7 +698,7 @@ if(castigator!=0)
 
 glLoadIdentity();
 glColor3f(1,1,1);
-renderText(10,30,QString("Poti trimite maxim 6 nave deodata"));
+renderText(10,30,QString("Poti trimite grupuri de maxim 6 nave"));
 
 glLoadIdentity();
 glTranslatef(cursorx,cursory,-20);
@@ -657,13 +709,7 @@ glVertex2f(-0.1,0);
 glVertex2f(0.1,0);
 glEnd();
 
-/*
-n.move(cursorx,cursory);
-n2.move(cursorx+1,cursory+1);*//*
-g.setDest(cursorx,cursory,0.5);
-g.ignorePlanet(-44,-55,20);
-g.miscaGrup();
-*/
+
 //ERORI BA BOULE
 bool temp=false;
 int auxNumberOfGroups=numberOfGroups;//altfel,dat fiind faptul ca in aceste cicluri repetitive,cadrul este "inghetat",mouseOver va returna tot timpul true, iar numberOfGroups va creste pana cand da segmentation fault
@@ -671,13 +717,19 @@ int newGroup=numberOfGroups;//asta este indexul grupului liber
 bool creezGrupNou=true;
 int originIndex=0,numberOfSentShips=6;//numarul de nave care va fi trimis
 
+
 if(!numberOfGroups) auxNumberOfGroups=1;
 for(k=0;k<auxNumberOfGroups;k++)
 for(i=0;i<numberOfPlanets;i++)
 if(p[i].mouseOver(cursorx,cursory)) {
+
+
     t2=clock();
     if(t2-t1>175000)//era 175000
     {
+
+
+
         int jj;
         t1=t2;
         for(jj=0;jj<numberOfPlanets;jj++)
@@ -686,13 +738,16 @@ if(p[i].mouseOver(cursorx,cursory)) {
         if(p[originIndex].getPopulation()<numberOfSentShips) numberOfSentShips=p[originIndex].getPopulation();
     if(p[i].getPlayerID()!=hostPlayerID)  //nu este planeta mea=>o atac
     {
+
+
          int ii;
         temp=true;
         numberOfClicks=0;
         p[originIndex].modifyPopulation(-numberOfSentShips);//DA: originindex, -numberOfSentShips
 
-        sprintf(msg,"MOD_POP: %d,%d",originIndex,-numberOfSentShips);
-        sendMessage(socket,msg,strlen(msg)+1);//mesajul + NULL//nu cred ca sizeof
+        sprintf(msg,"MOD_POP %d %d",originIndex,-numberOfSentShips);
+        sendMessage(socket,msg,512);//mesajul + NULL//nu cred ca sizeof
+
 
         for(ii=0;ii<numberOfGroups;ii++)
         {
@@ -704,31 +759,31 @@ if(p[i].mouseOver(cursorx,cursory)) {
             }
         }//daca este un loc liber in vectorul de grupuri,acesta este locul unde "cream" noul grup
         g[newGroup].setDest(p[i].getX(),p[i].getY(),p[i].getRadius());//DA: newGroup,x,y,radius
-        sprintf(msg,"SET_DEST: %d,%f,%f,%f",newGroup,p[i].getX(),p[i].getY(),p[i].getRadius());
-        sendMessage(socket,msg,strlen(msg)+1);//mesajul + NULL//nu cred ca sizeof
+        sprintf(msg,"SET_DEST %d %f %f %f",newGroup,p[i].getX(),p[i].getY(),p[i].getRadius());
+        sendMessage(socket,msg,512);//mesajul + NULL//nu cred ca sizeof
 
                 for(ii=0;ii<numberOfShips;ii++)
                 {//pun noul grup in planeta origine
                     g[newGroup].resetShip(ii,nextOriginX,nextOriginY);//DA: newGroup,ii,nextOX,nextOY
-                    sprintf(msg,"RESET_SHIP: %d,%d,%f,%f",newGroup,ii,nextOriginX,nextOriginY);
-                    sendMessage(socket,msg,strlen(msg)+1);//mesajul + NULL//nu cred ca sizeof
+                    sprintf(msg,"RESET_SHIP %d %d %f %f",newGroup,ii,nextOriginX,nextOriginY);
+                    sendMessage(socket,msg,512);//mesajul + NULL//nu cred ca sizeof
 
                     g[newGroup].setFlag(ii,false);//DA:newGroup,ii [,false]
-                    sprintf(msg,"SET_FLAG_FALSE: %d,%d",newGroup,ii);
-                    sendMessage(socket,msg,strlen(msg)+1);//mesajul + NULL//nu cred ca sizeof
+                    sprintf(msg,"SET_FLAG_FALSE %d %d",newGroup,ii);
+                    sendMessage(socket,msg,512);//mesajul + NULL//nu cred ca sizeof
 
                 }
         g[newGroup].setNumberOfShips(numberOfSentShips);//DA,DAR SPECULEAZA!: newGroup,numberOfSentShips
-        sprintf(msg,"SET_NUMBER_OF_SHIPS: %d,%d",newGroup,numberOfSentShips);
-        sendMessage(socket,msg,strlen(msg)+1);//mesajul + NULL//nu cred ca sizeof
+        sprintf(msg,"SET_NUMBER_OF_SHIPS %d %d",newGroup,numberOfSentShips);
+        sendMessage(socket,msg,512);//mesajul + NULL//nu cred ca sizeof
 
         g[newGroup].setPlayerID(Tetrahedron::getHostPlayerID());//DA:newGroup,hostPlayerID
-        sprintf(msg,"SET_GROUP_PLAYERID: %d,%d",newGroup,Tetrahedron::getHostPlayerID());
-        sendMessage(socket,msg,strlen(msg)+1);//mesajul + NULL//nu cred ca sizeof
+        sprintf(msg,"SET_GROUP_PLAYERID %d %d",newGroup,Tetrahedron::getHostPlayerID());
+        sendMessage(socket,msg,512);//mesajul + NULL//nu cred ca sizeof
 
         g[newGroup].setOrigin(nextOriginX,nextOriginY);//inutil?//DA: newGroup,nextOX,nextOY
-        sprintf(msg,"SET_ORIGIN: %d,%f,%f",newGroup,nextOriginX,nextOriginY);
-        sendMessage(socket,msg,strlen(msg)+1);//mesajul + NULL//nu cred ca sizeof
+        sprintf(msg,"SET_ORIGIN %d %f %f",newGroup,nextOriginX,nextOriginY);
+        sendMessage(socket,msg,512);//mesajul + NULL//nu cred ca sizeof
 
         int unghi;
         for(ii=0;ii<6;ii++)//DA: newGroup,ii,constanta
@@ -739,15 +794,15 @@ if(p[i].mouseOver(cursorx,cursory)) {
         if(nextOriginX<p[i].getX() && nextOriginY<p[i].getY()) unghi=45;
 
         g[newGroup].getNava(ii).setAngle(unghi);
-        sprintf(msg,"SET_ANGLE: %d,%d,%d",newGroup,ii,unghi);
-        sendMessage(socket,msg,strlen(msg)+1);//mesajul + NULL//nu cred ca sizeof
+        sprintf(msg,"SET_ANGLE %d %d %d",newGroup,ii,unghi);
+        sendMessage(socket,msg,512);//mesajul + NULL//nu cred ca sizeof
 
         }
         if(newGroup<MAXGROUPS && creezGrupNou==true)
         {
             numberOfGroups++;//DA, fa si incrementNumberOfGroups
             sprintf(msg,"NEW_GROUP");
-            sendMessage(socket,msg,strlen(msg)+1);//mesajul + NULL//nu cred ca sizeof
+            sendMessage(socket,msg,512);//mesajul + NULL//nu cred ca sizeof
         }
         cursorx=-100;//pentru a nu se interpreta un singur click ca fiind mai multe
         cursory=-100;
@@ -766,8 +821,8 @@ if(p[i].mouseOver(cursorx,cursory)) {
                    temp=true;
                    numberOfClicks=0;
                     p[originIndex].modifyPopulation(-numberOfSentShips);//DA: originIndex,-numberOfSentShips
-                    sprintf(msg,"MOD_POP: %d,%d",originIndex,-numberOfSentShips);
-                    sendMessage(socket,msg,strlen(msg)+1);//mesajul + NULL//nu cred ca sizeof
+                    sprintf(msg,"MOD_POP %d %d",originIndex,-numberOfSentShips);
+                    sendMessage(socket,msg,512);//mesajul + NULL//nu cred ca sizeof
                    for(ii=0;ii<numberOfGroups;ii++)
                    {
                        if(g[ii].grupLiber())
@@ -780,30 +835,30 @@ if(p[i].mouseOver(cursorx,cursory)) {
 if(p[i].getX()!=nextOriginX && p[i].getY()!=nextOriginY)
                    {
                    g[newGroup].setDest(p[i].getX(),p[i].getY(),p[i].getRadius());//DA:newGroup,x,y,R
-                   sprintf(msg,"SET_DEST: %d,%f,%f,%f",newGroup,p[i].getX(),p[i].getY(),p[i].getRadius());
-                   sendMessage(socket,msg,strlen(msg)+1);//mesajul + NULL//nu cred ca sizeof
+                   sprintf(msg,"SET_DEST %d %f %f %f",newGroup,p[i].getX(),p[i].getY(),p[i].getRadius());
+                   sendMessage(socket,msg,512);//mesajul + NULL//nu cred ca sizeof
                    }
                            for(ii=0;ii<numberOfShips;ii++)
                            {
                                g[newGroup].resetShip(ii,nextOriginX,nextOriginY);//DA:newGroup,ii,nextOriginX,nextOY
-                               sprintf(msg,"RESET_SHIP: %d,%d,%f,%f",newGroup,ii,nextOriginX,nextOriginY);
-                               sendMessage(socket,msg,strlen(msg)+1);//mesajul + NULL//nu cred ca sizeof
+                               sprintf(msg,"RESET_SHIP %d %d %f %f",newGroup,ii,nextOriginX,nextOriginY);
+                               sendMessage(socket,msg,512);//mesajul + NULL//nu cred ca sizeof
 
                                g[newGroup].setFlag(ii,false);//DA:newGroup,ii,[false]
-                               sprintf(msg,"SET_FLAG_FALSE: %d,%d",newGroup,ii);
-                               sendMessage(socket,msg,strlen(msg)+1);//mesajul + NULL//nu cred ca sizeof
+                               sprintf(msg,"SET_FLAG_FALSE %d %d",newGroup,ii);
+                               sendMessage(socket,msg,512);//mesajul + NULL//nu cred ca sizeof
                            }
                    g[newGroup].setNumberOfShips(numberOfSentShips);//DA:newGroup,numberOfShips
-                   sprintf(msg,"SET_NUMBER_OF_SHIPS: %d,%d",newGroup,numberOfSentShips);
-                   sendMessage(socket,msg,strlen(msg)+1);//mesajul + NULL//nu cred ca sizeof
+                   sprintf(msg,"SET_NUMBER_OF_SHIPS %d %d",newGroup,numberOfSentShips);
+                   sendMessage(socket,msg,512);//mesajul + NULL//nu cred ca sizeof
 
                    g[newGroup].setPlayerID(Tetrahedron::getHostPlayerID());//DA:newGroup,ID
-                   sprintf(msg,"SET_GROUP_PLAYERID: %d,%d",newGroup,Tetrahedron::getHostPlayerID());
-                   sendMessage(socket,msg,strlen(msg)+1);//mesajul + NULL//nu cred ca sizeof
+                   sprintf(msg,"SET_GROUP_PLAYERID %d %d",newGroup,Tetrahedron::getHostPlayerID());
+                   sendMessage(socket,msg,512);//mesajul + NULL//nu cred ca sizeof
 
                    g[newGroup].setOrigin(nextOriginX,nextOriginY);//inutil?//DA:newGroup,nOx,nOy
-                   sprintf(msg,"SET_ORIGIN: %d;%f;%f",newGroup,nextOriginX,nextOriginY);
-                   sendMessage(socket,msg,strlen(msg)+1);//mesajul + NULL//nu cred ca sizeof
+                   sprintf(msg,"SET_ORIGIN %d %f %f",newGroup,nextOriginX,nextOriginY);
+                   sendMessage(socket,msg,512);//mesajul + NULL//nu cred ca sizeof
 
                    int unghi;
                    for(ii=0;ii<6;ii++)
@@ -813,19 +868,19 @@ if(p[i].getX()!=nextOriginX && p[i].getY()!=nextOriginY)
                    if(nextOriginX<p[i].getX() && nextOriginY>p[i].getY()) unghi=315;
                    if(nextOriginX<p[i].getX() && nextOriginY<p[i].getY()) unghi=45;
                    g[newGroup].getNava(ii).setAngle(unghi);
-                   sprintf(msg,"SET_ANGLE: %d;%d;%d",newGroup,ii,unghi);
-                   sendMessage(socket,msg,strlen(msg)+1);//mesajul + NULL//nu cred ca sizeof
+                   sprintf(msg,"SET_ANGLE %d %d %d",newGroup,ii,unghi);
+                   sendMessage(socket,msg,512);//mesajul + NULL//nu cred ca sizeof
                    }
                    if(newGroup<MAXGROUPS && creezGrupNou==true)
                    {
                        numberOfGroups++;//DA,fa un IncrementNumberOFGRoups()
                        sprintf(msg,"NEW_GROUP");
-                       sendMessage(socket,msg,strlen(msg)+1);//mesajul + NULL//nu cred ca sizeof
+                       sendMessage(socket,msg,512);//mesajul + NULL//nu cred ca sizeof
                    }
                    cursorx=-100;//pentru a nu se interpreta un singur click ca fiind mai multe//a devenit inutil
                    cursory=-100;
 
-               }/*numberOfClicks=0;}*///al doilea click consecutiv pe o planeta de a mea; vreau sa imi transfer fortele de pe o planeta pe alta
+               }//al doilea click consecutiv pe o planeta de a mea; vreau sa imi transfer fortele de pe o planeta pe alta
     }
 }
 }
