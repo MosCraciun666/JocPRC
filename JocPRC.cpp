@@ -25,7 +25,8 @@ using namespace std;
 int OK;
 int START_VALID;
 bool done=false;
-int soc;
+int soc,sockfd;
+int hostPlayerID;
 //done = inutil deocamdata
 
 pthread_t thread_server_client;
@@ -54,6 +55,17 @@ void trateaza_alarma(int sig){
 }
 
 
+void inchide()
+{
+    char message[512];
+    sprintf(message,"%d LEFT",hostPlayerID);
+    int trimis=write(sockfd,message,512);
+close(sockfd);
+close(soc);
+cout<<"inchid"<<endl;
+}
+
+
 int main(int argc, char *argv[])
 {
 QApplication app(argc, argv);
@@ -73,10 +85,11 @@ tmpBox.exec();
 
 int buf;
 struct sockaddr_in local, rmt;
-int sockfd;
+//int sockfd;
 
 int id, cul;
 int * tabela_clienti = NULL;
+atexit(inchide);
 signal(SIGALRM,trateaza_alarma);
 alarm(5);
 sockfd = socket(PF_INET,SOCK_STREAM,0);
@@ -89,6 +102,7 @@ id = buf;
 cul = buf;
 cout<<"Id-ul primit este:"<<id<<" iar culoare primita este: "<<cul<<endl;
 tetrahedron.setHostPlayerID(id);
+hostPlayerID=id;
 int lung;
 read(sockfd,&lung,sizeof(int));
 tabela_clienti = (int *)realloc(tabela_clienti,lung*sizeof(int));
@@ -165,5 +179,4 @@ tetrahedron.draw();
 
 return app.exec();
 }
-
 

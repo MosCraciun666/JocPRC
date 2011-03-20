@@ -363,7 +363,7 @@ void sendMessage(int sockfd,char *msg,int size)
 
     sprintf(tmp,"%d %s",hostPlayerID,msg);//atasam id-ul in fata mesajului,ca sa stim de la cine vine
     trimis=write(sockfd,tmp,512);
-    usleep(25);//pentru ca se pot trimite mesaje mai repede decat se pot procesa
+    usleep(500);//pentru ca se pot trimite mesaje mai repede decat se pot procesa
                 //iar 25 us sunt nesemnificative
 
     printf("Scena trimite mesajul \":%s\" pe socket %d, marime: %d\n",tmp,sockfd,trimis);
@@ -422,6 +422,12 @@ if(strcmp(type,"SET_ANGLE")==0)//FARA EFECT!
     g[iarg[0]].getNava(iarg[1]).setAngle(farg[0]);
     }
 if(strcmp(type,"NEW_GROUP")==0) numberOfGroups++;
+if(strcmp(type,"LEFT")==0) //il scoatem din joc pe cel cu id-ul trimis
+    {
+    int i;//toate planetele lui sunt trimise jucatorului neutru
+    for(i=0;i<numberOfPlanets;i++)
+        if(p[i].getPlayerID()==ID) p[i].setPlayerID(0);
+    }
 }
 else printf("E mesajul meu\n");
 }
