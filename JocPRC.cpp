@@ -39,7 +39,7 @@ void * server_client(void * confd){
   //aici mereu se citesc comenzile provenite de la server
   while(1){
 
-      read(soc,primit,512);
+     if( read(soc,primit,512) < 0) cerr<<"eroare la citire";
       if(strlen(primit))
       {
       cout<<"Am primit de la server mesajul: "<<primit<<endl;
@@ -89,24 +89,27 @@ struct sockaddr_in local, rmt;
 
 int id, cul;
 int * tabela_clienti = NULL;
-atexit(inchide);
-signal(SIGALRM,trateaza_alarma);
+
+if(atexit(inchide)!=0) cerr<<"Eroare atexit()";
+if(signal(SIGALRM,trateaza_alarma)==SIG_ERR) cerr<<"Eroare la atribuirea handlerului de semmnal";
 alarm(5);
 sockfd = socket(PF_INET,SOCK_STREAM,0);
+if(sockfd<0) cerr<<"Eroare la socket()";
+
 set_addr(&local, NULL, INADDR_ANY, 0);
-bind(sockfd, (struct sockaddr *)&local, sizeof(local));
+if(bind(sockfd, (struct sockaddr *)&local, sizeof(local))<0) cerr<<"Eroare la bind";
 set_addr(&rmt,ADRESA_SERVER, 0, PORT_SERVER);
-connect(sockfd,(struct sockaddr *)&rmt, sizeof(rmt));
-read(sockfd, &buf, sizeof(int));
+if(connect(sockfd,(struct sockaddr *)&rmt, sizeof(rmt))<0) cerr<<"eroare la connect";
+if(read(sockfd, &buf, sizeof(int))<0) cerr<<"Eroare la citire";
 id = buf;
 cul = buf;
 cout<<"Id-ul primit este:"<<id<<" iar culoare primita este: "<<cul<<endl;
 tetrahedron.setHostPlayerID(id);
 hostPlayerID=id;
 int lung;
-read(sockfd,&lung,sizeof(int));
+if(read(sockfd,&lung,sizeof(int))<0) cerr<<"eroare la citire";
 tabela_clienti = (int *)realloc(tabela_clienti,lung*sizeof(int));
-read(sockfd,tabela_clienti, lung * sizeof(int));
+if(read(sockfd,tabela_clienti, lung * sizeof(int))<0) cerr<<"Eroare la citire";
 for(int i = 0; i < lung; i ++)
 {
 cout<<tabela_clienti[i]<<" ";
@@ -119,18 +122,18 @@ write(sockfd, &OK, sizeof(int));
 while(1){
 int k;
 //acum fiecare este pregatit sa preia id-urile noilor participanti
-read(sockfd,&k,sizeof(int));
+if(read(sockfd,&k,sizeof(int))<0) cerr<<"eroare la citire";
 cout<<"Avem un nou coechipier cu id: "<< k <<endl;
 tetrahedron.addPlayer(k);
 //scriu toti clientii valoarea start , care este 0 initial , prin comanda unui buton aceasta va fi facuta 1
 //procesul vostru va scrie spre server valoarea noua a variabilei de start
-write(sockfd, &START_VALID, sizeof(int));
+if(write(sockfd, &START_VALID, sizeof(int))<0) cerr<<"Eroare la scriere";
 //dupa care toti asteapta ca serverul sa le dea GO - INCEPE JOCUL sicronizat printro valoare 1
 int start_sau_nu;
 //daca variabila transmisa catre server de clientul unu era 1 acesta scrie inapoi 1 daca nu scrie ianpoi 0
 //daca clientul citeste 1 din pipe inseamna ca poate da drumu la joc
 cout<<"Cred ca aici e problema!"<<endl;
-read(sockfd, &start_sau_nu, sizeof(int));
+if(read(sockfd, &start_sau_nu, sizeof(int))<0) cerr<<"Eroare la citire";
 cout<<"Dupa read; start="<<start_sau_nu<<endl;
 if(start_sau_nu == 1)
 {
@@ -143,21 +146,22 @@ struct sockaddr_in remote, loc;
 socklen_t remlen= sizeof(remote);
 cout<<"Acum incep sa joc!"<<endl;////////////
 soc = socket(PF_INET,SOCK_STREAM,0);
+if(soc<0) cerr<<"Eroare la socket()";
 set_addr(&loc,NULL,INADDR_ANY,0);
 cout<<"Inainte de bind!"<<endl;//////////
-bind(soc,(struct sockaddr *)&loc, remlen);
+if(bind(soc,(struct sockaddr *)&loc, remlen)<0) cerr<<"Eroare la bind";
 set_addr(&remote,ADRESA_SERVER,0,PORTSC);
 //citeste o confirmare
 int ma_pot_conecta;
-read(sockfd,&ma_pot_conecta,sizeof(int));
-connect(soc,(struct sockaddr *)&remote,remlen);
+if(read(sockfd,&ma_pot_conecta,sizeof(int))<0) cerr<<"Eroare la read";
+if(connect(soc,(struct sockaddr *)&remote,remlen)) cerr<<"Eroare la conectare";
 int k;
 
 cout<<"SockFD="<<sockfd<<endl;
 tetrahedron.setSocket(sockfd);
 
 int semafor_start;
-read(sockfd,&semafor_start,sizeof(int));///////////
+if( read(sockfd,&semafor_start,sizeof(int))<0) cerr<<"eroare la citire";///////////
 
 pthread_create(&thread_server_client,NULL, server_client, (void*)&tetrahedron);
 

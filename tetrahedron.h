@@ -367,6 +367,7 @@ void sendMessage(int sockfd,char *msg,int size)
                 //iar 25 us sunt nesemnificative
 
     printf("Scena trimite mesajul \":%s\" pe socket %d, marime: %d\n",tmp,sockfd,trimis);
+    if(trimis==-1) printf("Nu se trimite\n");
    if(trimis==-1 && errno==EBADF) printf("Socketul e inchis!:%d\n",errno);
 }
 
